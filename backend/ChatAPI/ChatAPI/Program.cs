@@ -39,12 +39,13 @@ using (var scope = app.Services.CreateScope())
     var dbContext=scope.ServiceProvider.GetRequiredService<AppDbContext>();
     dbContext.Database.Migrate();
 }
-
-app.UseHttpsRedirection();
-app.UseRouting();
 app.UseCors(MyAllowSpecificOrigins);
-app.UseAuthorization();
+app.UseRouting();
 
+
+
+app.UseAuthorization();
+app.UseHttpsRedirection();
 
 
 if (app.Environment.IsDevelopment())
