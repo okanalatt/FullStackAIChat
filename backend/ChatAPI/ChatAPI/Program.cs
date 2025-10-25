@@ -27,6 +27,7 @@ builder.Services.AddCors(options =>
 
 
 builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddRouting(options => options.LowercaseUrls = true);
 builder.Services.AddControllers();
 builder.Services.AddHttpClient();
 builder.Services.AddEndpointsApiExplorer();
@@ -54,6 +55,10 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.MapControllers();
+app.UseEndpoints(endpoints =>
+{
+    
+    endpoints.MapControllers();
+});
 
 app.Run();
