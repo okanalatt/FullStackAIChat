@@ -3,7 +3,7 @@ import axios from 'axios';
 import './App.css';
 
 // KRİTİK: BURAYI KENDİ BACKEND URL'NİZLE DEĞİŞTİRİN
-const API_BASE_URL = 'https://localhost:7112/api/messages'; // Lütfen bu URL'yi kontrol edin!
+const API_BASE_URL = 'https://fullstack-ai-chat-5tje1.onrender.com/'; // Lütfen bu URL'yi kontrol edin!
 
 function App() {
     // Mesaj listesi
