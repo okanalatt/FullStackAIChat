@@ -56,7 +56,7 @@ namespace ChatAPI.Controllers
             // 2. HttpClient oluştur ve Auth Header ekle
             using HttpClient client = new HttpClient();
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
-
+            client.Timeout = TimeSpan.FromSeconds(15);
             // 3. AI Servisine Gönderilecek İstek Gövdesini Hazırla
             var inputText = request.Description;
             var requestBody = new { inputs = inputText };

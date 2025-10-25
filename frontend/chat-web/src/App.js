@@ -3,7 +3,7 @@ import axios from 'axios';
 import './App.css';
 
 // KRİTİK: BURAYI KENDİ RENDER API ADRESİNİZLE DEĞİŞTİRİN
-const API_BASE_URL = 'https://fullstack-ai-chat-1sja.onrender.com/api/messages';
+const API_BASE_URL = 'https://localhost:7112/api/messages';
 
 function App() {
     // Mesaj listesi: Artık tam Message objesini tutacak
