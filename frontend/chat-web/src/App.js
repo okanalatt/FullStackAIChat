@@ -1,63 +1,73 @@
-﻿import React, { useState } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './App.css';
 
-// KRİTİK: BURAYI KENDİ RENDER API ADRESİNİZLE DEĞİŞTİRİN
-const API_BASE_URL = 'https://localhost:7112/api/messages';
+// KRİTİK: BURAYI KENDİ BACKEND URL'NİZLE DEĞİŞTİRİN
+const API_BASE_URL = 'https://localhost:7112/api/messages'; // Lütfen bu URL'yi kontrol edin!
 
 function App() {
-    // Mesaj listesi: Artık tam Message objesini tutacak
+    // Mesaj listesi
     const [messages, setMessages] = useState([]);
     const [currentMessage, setCurrentMessage] = useState('');
     const [nickname, setNickname] = useState('Anonim');
+    const [isLoading, setIsLoading] = useState(false);
+
+    // 1. Uygulama yüklendiğinde mevcut mesajları çeker
+    useEffect(() => {
+        fetchMessages();
+    }, []);
+
+    const fetchMessages = async () => {
+        try {
+            const response = await axios.get(API_BASE_URL);
+            setMessages(response.data || []);
+        } catch (error) {
+            console.error("Mesajlar çekilirken hata oluştu:", error);
+        }
+    };
 
     const handleSend = async (e) => {
         e.preventDefault();
 
-        if (!currentMessage.trim()) return;
+        if (!currentMessage.trim() || isLoading) return;
 
-        // KRİTİK DEĞİŞİKLİK: C# Message modeline UYARLANDI
+        // Backend'e gönderilecek sade veri
         const messageData = {
-            Name: nickname, // C# Message.Name alanına eşleşir
-            Description: currentMessage, // C# Message.Description alanına eşleşir
-
+            Name: nickname,
+            Description: currentMessage,
         };
+
+        setIsLoading(true);
 
         try {
             // Backend'e POST isteği at
             const response = await axios.post(API_BASE_URL, messageData);
 
-            // Backend'den dönen yanıt muhtemelen AI sonucunu içeriyor (Kontrolcünüze göre sadece Ok(resultSentiment) dönüyor)
-            // ANCAK, projenin gereksinimi: kaydedilen mesajı listeye eklemek.
-            // Bu nedenle, Backend'deki PostMessage metodunuzun ya tüm Message objesini kaydetmesini
-            // ya da kaydedilen Message objesiyle birlikte Sentiment sonucunu döndürmesini BEKLİYORUZ.
+            // KRİTİK DÜZELTME: Backend'den gelen KAYDEDİLMİŞ objeyi doğrudan kullan
+            const savedMessage = response.data;
 
-            // Backend'iniz şu anda SADECE AI sonucunu (SentimentResponse) döndürdüğü için,
-            // mesajı biz manuel olarak listeye ekleyelim ve Feeling/Score alanlarını dolduralım.
-
-            const sentimentResult = response.data; // SentimentResponse
-
-            const newMessage = {
-                // Gönderdiğimiz veriler
-                Name: nickname,
-                Description: currentMessage,
-                Timestamp: new Date().toISOString(), // Simülasyon
-
-                // AI'dan gelen veriler
-                Feeling: sentimentResult.label, // C# SentimentResponse.label'dan
-                Score: sentimentResult.score // C# SentimentResponse.score'dan
-            };
-
-            // Mesaj listesini güncelle
-            setMessages(prevMessages => [...prevMessages, newMessage]);
+            // Mesaj listesini güncelle (Mesaj artık Feeling, Score, Timestamp içerir)
+            setMessages(prevMessages => [...prevMessages, savedMessage]);
 
             // Giriş alanını temizle
             setCurrentMessage('');
 
         } catch (error) {
             console.error('Mesaj gönderme hatası:', error.response ? error.response.data : error.message);
-            alert('Mesaj gönderilemedi. Konsolu kontrol edin.');
+            const errorDetails = error.response?.data?.details || error.response?.data?.error || 'Bilinmeyen bir hata oluştu.';
+            alert(`Mesaj gönderilemedi. Hata: ${errorDetails}`);
+        } finally {
+            setIsLoading(false);
         }
+    };
+
+    // Duygu rengini belirleyen yardımcı fonksiyon (Önceki düzeltmelerden)
+    const getSentimentColor = (feeling) => {
+        if (!feeling) return 'gray';
+        const lowerCaseFeeling = feeling.toLowerCase();
+        if (lowerCaseFeeling.includes('pozitif')) return 'green';
+        if (lowerCaseFeeling.includes('negatif')) return 'red';
+        return 'gray';
     };
 
     return (
@@ -72,12 +82,12 @@ function App() {
                     messages.map((msg, index) => (
                         <div key={index} style={{ marginBottom: '5px' }}>
                             {/* C# Modelindeki Name ve Description alanlarını kullanıyoruz */}
-                            <strong>{msg.Name}:</strong> {msg.Description}
+                            <strong>{msg.name || msg.Name}:</strong> {msg.description || msg.Description}
                             <span style={{
                                 marginLeft: '10px', fontWeight: 'bold',
-                                color: msg.Feeling === 'pozitif' ? 'green' : msg.Feeling === 'negatif' ? 'red' : 'gray'
+                                color: getSentimentColor(msg.feeling || msg.Feeling)
                             }}>
-                                ({msg.Feeling || 'Analiz Ediliyor'})
+                                ({msg.feeling || msg.Feeling || 'Analiz Ediliyor'})
                             </span>
                         </div>
                     ))
@@ -85,7 +95,7 @@ function App() {
             </div>
 
             {/* Mesaj Gönderme Formu */}
-            <form onSubmit={handleSend}>
+            <form onSubmit={handleSend} style={{ display: 'flex' }}>
                 <input
                     type="text"
                     placeholder="Rumuzunuz"
@@ -98,10 +108,10 @@ function App() {
                     placeholder="Mesajınızı yazın..."
                     value={currentMessage}
                     onChange={(e) => setCurrentMessage(e.target.value)}
-                    style={{ padding: '8px', width: '300px', marginRight: '10px' }}
+                    style={{ flexGrow: 1, padding: '8px', marginRight: '10px' }}
                 />
-                <button type="submit" style={{ padding: '8px 15px' }}>
-                    Gönder
+                <button type="submit" style={{ padding: '8px 15px' }} disabled={isLoading}>
+                    {isLoading ? 'Gönderiliyor...' : 'Gönder'}
                 </button>
             </form>
         </div>
