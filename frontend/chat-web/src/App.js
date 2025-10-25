@@ -2,17 +2,15 @@
 import axios from 'axios';
 import './App.css';
 
-
-const API_BASE_URL = 'https://fullstack-ai-chat-5tje1.onrender.com/api/messages';
+// DOĞRU URL!
+const API_BASE_URL = 'https://fullstackaichat-htei.onrender.com/api/messages';
 
 function App() {
-    // Mesaj listesi
     const [messages, setMessages] = useState([]);
     const [currentMessage, setCurrentMessage] = useState('');
     const [nickname, setNickname] = useState('Anonim');
     const [isLoading, setIsLoading] = useState(false);
 
-    // 1. Uygulama yüklendiğinde mevcut mesajları çeker
     useEffect(() => {
         fetchMessages();
     }, []);
@@ -31,7 +29,6 @@ function App() {
 
         if (!currentMessage.trim() || isLoading) return;
 
-        // Backend'e gönderilecek sade veri
         const messageData = {
             Name: nickname,
             Description: currentMessage,
@@ -40,18 +37,10 @@ function App() {
         setIsLoading(true);
 
         try {
-        
             const response = await axios.post(API_BASE_URL, messageData);
-
-        
             const savedMessage = response.data;
-
-         
             setMessages(prevMessages => [...prevMessages, savedMessage]);
-
-        
             setCurrentMessage('');
-
         } catch (error) {
             console.error('Mesaj gönderme hatası:', error.response ? error.response.data : error.message);
             const errorDetails = error.response?.data?.details || error.response?.data?.error || 'Bilinmeyen bir hata oluştu.';
@@ -60,7 +49,6 @@ function App() {
             setIsLoading(false);
         }
     };
-
 
     const getSentimentColor = (feeling) => {
         if (!feeling) return 'gray';
@@ -74,14 +62,12 @@ function App() {
         <div className="App" style={{ padding: '20px' }}>
             <h1>FullStack Chat + AI Analiz 💬</h1>
 
-            {/* Mesaj Listesi Alanı */}
             <div style={{ border: '1px solid #ccc', height: '300px', overflowY: 'scroll', marginBottom: '10px', padding: '10px' }}>
                 {messages.length === 0 ? (
                     <p style={{ textAlign: 'center', color: '#666' }}>Henüz mesaj yok. Bir mesaj gönderin!</p>
                 ) : (
                     messages.map((msg, index) => (
                         <div key={index} style={{ marginBottom: '5px' }}>
-                            {/* C# Modelindeki Name ve Description alanlarını kullanıyoruz */}
                             <strong>{msg.name || msg.Name}:</strong> {msg.description || msg.Description}
                             <span style={{
                                 marginLeft: '10px', fontWeight: 'bold',
@@ -94,7 +80,6 @@ function App() {
                 )}
             </div>
 
-            {/* Mesaj Gönderme Formu */}
             <form onSubmit={handleSend} style={{ display: 'flex' }}>
                 <input
                     type="text"
