@@ -2,16 +2,9 @@ using ChatAPI.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
 
-
-
-var MyAllowSpecificOrigins = "_myAllowSpecificOrigins"; 
+var MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
 
 var builder = WebApplication.CreateBuilder(args);
-
-
-
-
-
 
 // 1. CORS Politikasini Ekleme
 builder.Services.AddCors(options =>
@@ -25,8 +18,9 @@ builder.Services.AddCors(options =>
                       });
 });
 
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 builder.Services.AddRouting(options => options.LowercaseUrls = true);
 builder.Services.AddControllers();
 builder.Services.AddHttpClient();
@@ -35,30 +29,27 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
+// Database Migration
 using (var scope = app.Services.CreateScope())
 {
-    var dbContext=scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     dbContext.Database.Migrate();
 }
+
+// CORS'u en üstte kullan (ÖNEMLÝ!)
 app.UseCors(MyAllowSpecificOrigins);
-app.UseRouting();
 
-
-
-app.UseAuthorization();
-app.UseHttpsRedirection();
-
-
+// Swagger sadece development'ta
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-app.UseEndpoints(endpoints =>
-{
-    
-    endpoints.MapControllers();
-});
+app.UseHttpsRedirection();
+app.UseRouting();
+app.UseAuthorization();
+
+app.MapControllers();
 
 app.Run();
