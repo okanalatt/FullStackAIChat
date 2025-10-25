@@ -40,16 +40,16 @@ function App() {
         setIsLoading(true);
 
         try {
-            // Backend'e POST isteği at
+        
             const response = await axios.post(API_BASE_URL, messageData);
 
-            // KRİTİK DÜZELTME: Backend'den gelen KAYDEDİLMİŞ objeyi doğrudan kullan
+        
             const savedMessage = response.data;
 
-            // Mesaj listesini güncelle (Mesaj artık Feeling, Score, Timestamp içerir)
+         
             setMessages(prevMessages => [...prevMessages, savedMessage]);
 
-            // Giriş alanını temizle
+        
             setCurrentMessage('');
 
         } catch (error) {
@@ -61,7 +61,7 @@ function App() {
         }
     };
 
-    // Duygu rengini belirleyen yardımcı fonksiyon (Önceki düzeltmelerden)
+
     const getSentimentColor = (feeling) => {
         if (!feeling) return 'gray';
         const lowerCaseFeeling = feeling.toLowerCase();
