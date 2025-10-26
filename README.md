@@ -59,7 +59,8 @@ FullStackAIChat/
 
 - **Web Chat**: https://full-stack-ai-chat-git-main-okanalats-projects.vercel.app
 - **Backend API**: https://fullstackaichat-htei.onrender.com/api/messages
-- **Mobil APK**: 
+- **Mobil APK**: https://github.com/okanalatt/FullStackAIChat/releases/download/1.0.0/app-release.apk
+- - **AI Servisi Endpoint **: https://huggingface.co/spaces/okanalat/duygu-analizi
 
 ## ⚙️ Kurulum
 
