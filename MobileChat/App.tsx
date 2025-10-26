@@ -165,13 +165,13 @@ const App = () => {
             <View style={styles.inputContainer}>
                 <TextInput
                     style={styles.input}
-                    placeholder="Mesajýnýzý yazýn..."
+                    placeholder="Mesajinizi yazin..."
                     value={newMessage}
                     onChangeText={setNewMessage}
                     editable={!loading}
                 />
                 <Button
-                    title={loading ? 'Gönderiliyor...' : 'Gönder'}
+                    title={loading ? 'Gonderiliyor...' : 'Gonder'}
                     onPress={handleSendMessage}
                     disabled={!newMessage.trim() || loading}
                 />
