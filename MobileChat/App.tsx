@@ -18,12 +18,10 @@ const API_URL = 'https://fullstackaichat-htei.onrender.com';
 // Mesaj tipini C# Modelinize (Message) göre güncelledik
 interface Message {
     id: number;
-    // C# Modelinde 'Name' olarak tanýmlý
+    // Sizin C# Modeliniz: Name, Description, Feeling, Score
     name: string;
-    // C# Modelinde 'Description' olarak tanýmlý
     description: string;
     timestamp: string;
-    // C# Modelinde 'Feeling' olarak tanýmlý
     feeling: 'pozitif' | 'nötr' | 'negatif' | 'bekleniyor' | string;
     score: number;
 }
@@ -31,13 +29,18 @@ interface Message {
 const App = () => {
     const [messages, setMessages] = useState<Message[]>([]);
     const [newMessage, setNewMessage] = useState('');
+    // Mobil uygulamayý direkt chat ekranýna geçirmek için rumuzun önceden ayarlanmasý
     const [rumuz, setRumuz] = useState('');
-    const [isRegistered, setIsRegistered] = useState(false);
     const [loading, setLoading] = useState(false);
+
+    // Yeni durum: Ýlk baþta rumuzu girmesi gereken bir ekran göstereceðiz.
+    const [isRumuzEntered, setIsRumuzEntered] = useState(false);
+
 
     // --- Yardýmcý Fonksiyonlar ---
 
     const getSentimentColor = (score: string) => {
+        // Sizin C# Feeling alanýnýzdan gelen deðere göre renk döner
         switch (score.toLowerCase()) {
             case 'pozitif':
                 return 'green';
@@ -46,107 +49,95 @@ const App = () => {
             case 'nötr':
                 return 'gray';
             default:
-                return 'orange'; // Duygu analizi bekleniyor
+                return 'orange';
         }
     };
 
     const getMessages = async () => {
         try {
+            // Tüm mesajlarý çekiyoruz
             const response = await axios.get(`${API_URL}/api/messages`);
-            // Gelen veriyi (name, description, feeling) kullanýyoruz
+
+            // Gelen verideki feeling alanýný kullanýyoruz.
             setMessages(response.data.map((msg: any) => ({
                 ...msg,
                 feeling: msg.feeling || 'bekleniyor'
             })));
         } catch (error) {
             console.error("Mesajlar çekilemedi:", error);
-            // Bu hata mesajýný daha az agresif yapalým, sadece console'a düþsün.
+            // Mesaj çekmede hata olursa kullanýcýyý uyarmayalým, sadece console'a düþsün
         }
     };
 
-    // --- Temel Akýþ Fonksiyonlarý ---
-
-    const handleRegister = async () => {
-        if (!rumuz.trim()) {
-            Alert.alert('Uyarý', 'Lütfen bir rumuz girin.');
-            return;
-        }
-        setLoading(true);
-        try {
-            // Düzeltme: C# Modelinizdeki Name alanýný gönderiyoruz
-            // API'niz muhtemelen bu Name ile bir User/Rumuz kaydý yapýyor.
-            await axios.post(`${API_URL}/api/users`, { Name: rumuz });
-            setIsRegistered(true);
-            await getMessages();
-        } catch (error) {
-            // Hata: Rumuz kaydý baþarýsýz oldu (Hala 400 Bad Request alýyorsak, buraya düþeriz)
-            Alert.alert('Hata', 'Rumuz kaydý baþarýsýz oldu. (Backend Model Hatasý Olabilir!)');
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const handleSendMessage = async () => {
-        if (!newMessage.trim() || !isRegistered) return;
+        if (!newMessage.trim() || !rumuz.trim()) return;
         setLoading(true);
 
-        // Düzeltme: C# Modelinizdeki Name ve Description alanlarýný gönderiyoruz
+        // Düzeltme: Sizin C# Modelinizdeki alan adlarýný kullanýyoruz: Name ve Description
         const messageData = {
             Name: rumuz,
             Description: newMessage,
         };
 
         try {
-            // Mesajý gönder ve backend'den analiz edilmiþ tüm mesaj listesini geri al.
+            // Mesajý /api/messages endpoint'ine POST ediyoruz
             const response = await axios.post(`${API_URL}/api/messages`, messageData);
 
-            // Backend, analiz sonucuyla birlikte güncel listeyi döndürüyor.
+            // Backend (C# Controller), analiz yapýp muhtemelen tüm mesaj listesini geri döndürüyor.
             setMessages(response.data.map((msg: any) => ({
                 ...msg,
                 feeling: msg.feeling || 'bekleniyor'
             })));
             setNewMessage('');
         } catch (error) {
-            Alert.alert('Hata', 'Mesaj gönderilemedi veya analiz baþarýsýz oldu.');
+            // Rumuz kaydý yerine direkt mesaj hatasý gösterelim.
+            Alert.alert('Hata', 'Mesaj gönderilemedi. (Backend/AI sorunu olabilir.)');
         } finally {
             setLoading(false);
         }
     };
 
-    // Uygulama ilk açýldýðýnda veya register sonrasý çalýþacak
+    // Rumuz girildikten sonra mesajlarý çekmeye baþla
     useEffect(() => {
-        if (isRegistered) {
+        if (isRumuzEntered) {
             getMessages();
             // 5 saniyede bir mesajlarý yenile
             const interval = setInterval(getMessages, 5000);
             return () => clearInterval(interval);
         }
-    }, [isRegistered]);
+    }, [isRumuzEntered]);
 
     // --- Arayüz (UI) Render Bölümü ---
 
-    // Kullanýcý henüz kaydolmadýysa Rumuz Giriþ Ekraný
-    if (!isRegistered) {
+    // Kullanýcý henüz rumuzunu girmediyse Rumuz Giriþ Ekraný
+    if (!isRumuzEntered) {
         return (
             <View style={styles.container}>
                 <Text style={styles.headerText}>Konuþarak Öðren Mobil Chat</Text>
                 <TextInput
                     style={styles.input}
-                    placeholder="Bir Rumuz Girin"
+                    placeholder="Bir Rumuz Girin (Gerekli)"
                     value={rumuz}
                     onChangeText={setRumuz}
                     editable={!loading}
                 />
                 <Button
-                    title={loading ? 'Kaydediliyor...' : 'Rumuz ile Baþla'}
-                    onPress={handleRegister}
+                    title={'Chat\'e Baþla'}
+                    onPress={() => {
+                        if (rumuz.trim()) {
+                            setIsRumuzEntered(true);
+                        } else {
+                            Alert.alert('Uyarý', 'Lütfen bir rumuz girin.');
+                        }
+                    }}
                     disabled={loading}
                 />
             </View>
         );
     }
 
-    // Kullanýcý Kaydolduktan Sonraki Chat Ekraný
+    // Kullanýcý Rumuzunu Girdikten Sonraki Chat Ekraný
     return (
         <KeyboardAvoidingView
             style={styles.fullContainer}
@@ -164,6 +155,7 @@ const App = () => {
                 renderItem={({ item }) => (
                     <View style={[
                         styles.messageBubble,
+                        // Kendi mesajýný Name alanýna göre belirliyoruz
                         item.name === rumuz ? styles.myMessage : styles.otherMessage,
                     ]}>
                         <Text style={styles.messageRumuz}>{item.name}</Text>
@@ -176,7 +168,7 @@ const App = () => {
                         ]}>
                             Duygu: {item.feeling.toUpperCase()}
                         </Text>
-                        {/* Skor: {item.score} (Ek bilgi) */}
+                        {/* Skor: {item.score} */}
                     </View>
                 )}
             />
