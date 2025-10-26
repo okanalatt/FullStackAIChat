@@ -43,8 +43,6 @@ function App() {
             setCurrentMessage('');
         } catch (error) {
             console.error('Mesaj gönderme hatası:', error.response ? error.response.data : error.message);
-            const errorDetails = error.response?.data?.details || error.response?.data?.error || 'Bilinmeyen bir hata oluştu.';
-            alert(`Mesaj gönderilemedi. Hata: ${errorDetails}`);
         } finally {
             setIsLoading(false);
         }
@@ -75,6 +73,11 @@ function App() {
                             }}>
                                 ({msg.feeling || msg.Feeling || 'Analiz Ediliyor'})
                             </span>
+                            {(msg.score || msg.Score) && (
+                                <span style={{ marginLeft: '10px', color: '#666', fontSize: '14px' }}>
+                                    [{((msg.score || msg.Score) * 100).toFixed(1)}%]
+                                </span>
+                            )}
                         </div>
                     ))
                 )}
