@@ -9,19 +9,23 @@ import {
     Alert,
     KeyboardAvoidingView,
     Platform,
-    ScrollView,
 } from 'react-native';
 import axios from 'axios';
 
+// Backend URL'niz: Render API'nin ana adresi.
 const API_URL = 'https://fullstackaichat-htei.onrender.com';
 
-// Mesaj tipini tanýmlýyoruz (TypeScript için)
+// Mesaj tipini C# Modelinize (Message) göre güncelledik
 interface Message {
     id: number;
-    rumuz: string;
-    content: string;
+    // C# Modelinde 'Name' olarak tanýmlý
+    name: string;
+    // C# Modelinde 'Description' olarak tanýmlý
+    description: string;
     timestamp: string;
-    sentimentScore: 'pozitif' | 'nötr' | 'negatif' | 'bekleniyor';
+    // C# Modelinde 'Feeling' olarak tanýmlý
+    feeling: 'pozitif' | 'nötr' | 'negatif' | 'bekleniyor' | string;
+    score: number;
 }
 
 const App = () => {
@@ -34,7 +38,7 @@ const App = () => {
     // --- Yardýmcý Fonksiyonlar ---
 
     const getSentimentColor = (score: string) => {
-        switch (score) {
+        switch (score.toLowerCase()) {
             case 'pozitif':
                 return 'green';
             case 'negatif':
@@ -49,14 +53,14 @@ const App = () => {
     const getMessages = async () => {
         try {
             const response = await axios.get(`${API_URL}/api/messages`);
-            // Gelen veriyi TypeScript modelimize uygun hale getiriyoruz
+            // Gelen veriyi (name, description, feeling) kullanýyoruz
             setMessages(response.data.map((msg: any) => ({
                 ...msg,
-                sentimentScore: msg.sentimentScore || 'bekleniyor'
+                feeling: msg.feeling || 'bekleniyor'
             })));
         } catch (error) {
             console.error("Mesajlar çekilemedi:", error);
-            Alert.alert('Hata', 'Mesajlar listelenirken bir sorun oluþtu.');
+            // Bu hata mesajýný daha az agresif yapalým, sadece console'a düþsün.
         }
     };
 
@@ -69,12 +73,14 @@ const App = () => {
         }
         setLoading(true);
         try {
-            // 1. Kullanýcý kaydý (sadece rumuz) .NET API'ye gönderiliyor [cite: 7]
-            await axios.post(`${API_URL}/api/users`, { rumuz });
+            // Düzeltme: C# Modelinizdeki Name alanýný gönderiyoruz
+            // API'niz muhtemelen bu Name ile bir User/Rumuz kaydý yapýyor.
+            await axios.post(`${API_URL}/api/users`, { Name: rumuz });
             setIsRegistered(true);
-            await getMessages(); // Kayýttan sonra mevcut mesajlarý çek
+            await getMessages();
         } catch (error) {
-            Alert.alert('Hata', 'Rumuz kaydý baþarýsýz oldu.');
+            // Hata: Rumuz kaydý baþarýsýz oldu (Hala 400 Bad Request alýyorsak, buraya düþeriz)
+            Alert.alert('Hata', 'Rumuz kaydý baþarýsýz oldu. (Backend Model Hatasý Olabilir!)');
         } finally {
             setLoading(false);
         }
@@ -84,21 +90,22 @@ const App = () => {
         if (!newMessage.trim() || !isRegistered) return;
         setLoading(true);
 
+        // Düzeltme: C# Modelinizdeki Name ve Description alanlarýný gönderiyoruz
         const messageData = {
-            Rumuz: rumuz,
-            Content: newMessage,
+            Name: rumuz,
+            Description: newMessage,
         };
 
         try {
-            // 2. Mesajýn gönderilmesi (Backend AI'yi tetikleyecek) [cite: 7]
+            // Mesajý gönder ve backend'den analiz edilmiþ tüm mesaj listesini geri al.
             const response = await axios.post(`${API_URL}/api/messages`, messageData);
 
-            // Backend, analiz sonucuyla birlikte güncel listeyi döndürüyor. [cite: 7]
+            // Backend, analiz sonucuyla birlikte güncel listeyi döndürüyor.
             setMessages(response.data.map((msg: any) => ({
                 ...msg,
-                sentimentScore: msg.sentimentScore || 'bekleniyor'
+                feeling: msg.feeling || 'bekleniyor'
             })));
-            setNewMessage(''); // Giriþ alanýný temizle
+            setNewMessage('');
         } catch (error) {
             Alert.alert('Hata', 'Mesaj gönderilemedi veya analiz baþarýsýz oldu.');
         } finally {
@@ -110,7 +117,7 @@ const App = () => {
     useEffect(() => {
         if (isRegistered) {
             getMessages();
-            // MVP için basit bir refresh mekanizmasý (Gerçek zamanlý olmasa da güncel tutar)
+            // 5 saniyede bir mesajlarý yenile
             const interval = setInterval(getMessages, 5000);
             return () => clearInterval(interval);
         }
@@ -122,7 +129,7 @@ const App = () => {
     if (!isRegistered) {
         return (
             <View style={styles.container}>
-                <Text style={styles.title}>Konuþarak Öðren Mobil Chat</Text>
+                <Text style={styles.headerText}>Konuþarak Öðren Mobil Chat</Text>
                 <TextInput
                     style={styles.input}
                     placeholder="Bir Rumuz Girin"
@@ -157,18 +164,19 @@ const App = () => {
                 renderItem={({ item }) => (
                     <View style={[
                         styles.messageBubble,
-                        item.rumuz === rumuz ? styles.myMessage : styles.otherMessage,
+                        item.name === rumuz ? styles.myMessage : styles.otherMessage,
                     ]}>
-                        <Text style={styles.messageRumuz}>{item.rumuz}</Text>
-                        <Text style={styles.messageContent}>{item.content}</Text>
+                        <Text style={styles.messageRumuz}>{item.name}</Text>
+                        <Text style={styles.messageContent}>{item.description}</Text>
 
                         {/* Duygu Skoru Gösterimi */}
                         <Text style={[
                             styles.sentiment,
-                            { color: getSentimentColor(item.sentimentScore) },
+                            { color: getSentimentColor(item.feeling) },
                         ]}>
-                            Duygu: {item.sentimentScore.toUpperCase()}
+                            Duygu: {item.feeling.toUpperCase()}
                         </Text>
+                        {/* Skor: {item.score} (Ek bilgi) */}
                     </View>
                 )}
             />
