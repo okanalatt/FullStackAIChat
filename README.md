@@ -6,7 +6,7 @@ Kullanıcıların mesajlaşarak sohbet edebildiği, AI ile duygu analizi yapıla
 
 - **Frontend Web**: React.js + Axios + Vercel
 - **Frontend Mobil**: React Native CLI (TypeScript)
-- **Backend**: .NET Core 8 + Entity Framework + SQLite + Render
+- **Backend**: .NET Core 9 + Entity Framework + SQLite + Render
 - **AI Servisi**: Hugging Face (distilbert-base-uncased-finetuned-sst-2-english)
 
 ## 📦 Proje Yapısı
