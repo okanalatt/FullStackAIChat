@@ -6,12 +6,10 @@ Kullanıcıların mesajlaşarak sohbet edebildiği, AI ile duygu analizi yapıla
 
 Bu Full-Stack proje, uçtan uca zinciri (React → .NET → Python AI) göstermek amacıyla tamamen ücretsiz hosting platformlarında barındırılmıştır.
 
-| Katman | Teknoloji Yığını | Veritabanı / AI Model | Hosting Platformu |
-| :--- | :--- | :--- | :--- |
-| **Frontend (Web)** | React.js (Axios ile entegrasyon) | N/A | Vercel |
-| **Frontend (Mobil)** | React Native CLI (TypeScript) | N/A | N/A (APK sunuldu) |
-| **Backend (API)** | .NET Core 9 + Entity Framework | SQLite | Render (Docker ile) |
-| **AI Servisi** | Python + Gradio API | **Türkçe Duygu Analizi Modeli (Örn: `savasy/bert-base-turkish-sentiment-cased`)** | Hugging Face Spaces |
+Frontend Web: [React.js + Axios + Vercel ] https://full-stack-ai-chat-git-main-okanalats-projects.vercel.app/
+Frontend Mobil: React Native CLI (TypeScript) https://github.com/okanalatt/FullStackAIChat/releases/download/1.0.0/app-release.apk
+Backend: .NET Core 9 + Entity Framework + SQLite + Docker + Render
+AI Servisi: Hugging Face - (https://huggingface.co/spaces/okanalat/duygu-analizi)
 
 ---
 
