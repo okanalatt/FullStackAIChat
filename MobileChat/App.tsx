@@ -3,7 +3,7 @@ import {
     View,
     Text,
     TextInput,
-    Button,
+    TouchableOpacity,
     FlatList,
     StyleSheet,
     Alert,
@@ -34,15 +34,15 @@ const App = () => {
         switch (score.toLowerCase()) {
             case 'pozitif':
             case 'positive':
-                return 'green';
+                return '#27ae60';
             case 'negatif':
             case 'negative':
-                return 'red';
+                return '#e74c3c';
             case 'nötr':
             case 'neutral':
-                return 'gray';
+                return '#95a5a6';
             default:
-                return 'orange';
+                return '#f39c12';
         }
     };
 
@@ -100,25 +100,31 @@ const App = () => {
     if (!isRumuzEntered) {
         return (
             <View style={styles.container}>
-                <Text style={styles.headerText}>FullStack AI Chat (Mobil)</Text>
+                <Text style={styles.welcomeTitle}>FullStack AI Chat</Text>
+                <Text style={styles.welcomeSubtitle}>Sohbete katilmak icin rumuzunuzu girin</Text>
+
                 <TextInput
                     style={styles.rumuzInput}
                     placeholder="Rumuz girin"
+                    placeholderTextColor="#95a5a6"
                     value={rumuz}
                     onChangeText={setRumuz}
                     editable={!loading}
                 />
-                <Button
-                    title="Sohbete Baþla"
+
+                <TouchableOpacity
+                    style={[styles.startButton, !rumuz.trim() && styles.buttonDisabled]}
                     onPress={() => {
                         if (rumuz.trim()) {
                             setIsRumuzEntered(true);
                         } else {
-                            Alert.alert('Uyarý', 'Lütfen bir rumuz girin.');
+                            Alert.alert('Uyari', 'Lutfen bir rumuz girin.');
                         }
                     }}
-                    disabled={loading}
-                />
+                    disabled={loading || !rumuz.trim()}
+                >
+                    <Text style={styles.startButtonText}>Sohbete Basla</Text>
+                </TouchableOpacity>
             </View>
         );
     }
@@ -166,15 +172,20 @@ const App = () => {
                 <TextInput
                     style={styles.input}
                     placeholder="Mesajinizi yazin..."
+                    placeholderTextColor="#95a5a6"
                     value={newMessage}
                     onChangeText={setNewMessage}
                     editable={!loading}
                 />
-                <Button
-                    title={loading ? 'Gonderiliyor...' : 'Gonder'}
+                <TouchableOpacity
+                    style={[styles.sendButton, (!newMessage.trim() || loading) && styles.buttonDisabled]}
                     onPress={handleSendMessage}
                     disabled={!newMessage.trim() || loading}
-                />
+                >
+                    <Text style={styles.sendButtonText}>
+                        {loading ? 'Gonderiliyor...' : 'Gonder'}
+                    </Text>
+                </TouchableOpacity>
             </View>
         </KeyboardAvoidingView>
     );
@@ -183,14 +194,26 @@ const App = () => {
 const styles = StyleSheet.create({
     fullContainer: {
         flex: 1,
-        backgroundColor: '#f5f5f5',
+        backgroundColor: '#ecf0f1',
     },
     container: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
         padding: 20,
-        backgroundColor: '#f5f5f5',
+        backgroundColor: '#ecf0f1',
+    },
+    welcomeTitle: {
+        fontSize: 28,
+        fontWeight: 'bold',
+        color: '#2c3e50',
+        marginBottom: 10,
+    },
+    welcomeSubtitle: {
+        fontSize: 16,
+        color: '#7f8c8d',
+        marginBottom: 30,
+        textAlign: 'center',
     },
     header: {
         backgroundColor: '#3498db',
@@ -210,29 +233,63 @@ const styles = StyleSheet.create({
     },
     rumuzInput: {
         width: '80%',
-        borderWidth: 1,
-        borderColor: '#ccc',
-        padding: 12,
-        borderRadius: 8,
+        borderWidth: 2,
+        borderColor: '#3498db',
+        padding: 15,
+        borderRadius: 10,
         marginBottom: 20,
         backgroundColor: 'white',
         fontSize: 16,
+        color: '#2c3e50',
+    },
+    startButton: {
+        backgroundColor: '#3498db',
+        paddingVertical: 15,
+        paddingHorizontal: 40,
+        borderRadius: 10,
+        elevation: 3,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+    },
+    startButtonText: {
+        color: 'white',
+        fontSize: 18,
+        fontWeight: 'bold',
     },
     input: {
         flex: 1,
         borderWidth: 1,
-        borderColor: '#ccc',
-        padding: 10,
-        borderRadius: 5,
+        borderColor: '#bdc3c7',
+        padding: 12,
+        borderRadius: 8,
         marginRight: 10,
         backgroundColor: 'white',
+        color: '#2c3e50',
     },
     inputContainer: {
         flexDirection: 'row',
         padding: 10,
         borderTopWidth: 1,
-        borderColor: '#eee',
+        borderColor: '#bdc3c7',
         backgroundColor: 'white',
+        alignItems: 'center',
+    },
+    sendButton: {
+        backgroundColor: '#3498db',
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+        borderRadius: 8,
+    },
+    sendButtonText: {
+        color: 'white',
+        fontWeight: 'bold',
+        fontSize: 16,
+    },
+    buttonDisabled: {
+        backgroundColor: '#95a5a6',
+        opacity: 0.6,
     },
     messageBubble: {
         padding: 12,
@@ -241,7 +298,7 @@ const styles = StyleSheet.create({
         maxWidth: '80%',
     },
     myMessage: {
-        backgroundColor: '#dcf8c6',
+        backgroundColor: '#d1f2eb',
         alignSelf: 'flex-end',
         marginRight: 10,
     },
@@ -250,7 +307,7 @@ const styles = StyleSheet.create({
         alignSelf: 'flex-start',
         marginLeft: 10,
         borderWidth: 1,
-        borderColor: '#eee',
+        borderColor: '#ecf0f1',
     },
     messageRumuz: {
         fontWeight: 'bold',
@@ -274,7 +331,7 @@ const styles = StyleSheet.create({
     },
     scoreText: {
         fontSize: 10,
-        color: '#666',
+        color: '#7f8c8d',
         fontWeight: 'bold',
     }
 });
