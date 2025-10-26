@@ -6,11 +6,10 @@ Kullanıcıların mesajlaşarak sohbet edebildiği, AI ile duygu analizi yapıla
 
 Bu Full-Stack proje, uçtan uca zinciri (React → .NET → Python AI) göstermek amacıyla tamamen ücretsiz hosting platformlarında barındırılmıştır.
 
-Frontend Web: [React.js + Axios + Vercel ] https://full-stack-ai-chat-git-main-okanalats-projects.vercel.app/
-Frontend Mobil: React Native CLI (TypeScript) https://github.com/okanalatt/FullStackAIChat/releases/download/1.0.0/app-release.apk
+Frontend Web: React.js + Axios + Vercel
+Frontend Mobil: React Native CLI (TypeScript)
 Backend: .NET Core 9 + Entity Framework + SQLite + Docker + Render
-AI Servisi: Hugging Face - (https://huggingface.co/spaces/okanalat/duygu-analizi)
-
+AI Servisi: Hugging Face - distilbert-base-uncased-finetuned-sst-2-english
 ---
 
 ### Önemli Not: AI Model Seçimi
@@ -68,7 +67,7 @@ FullStackAIChat/
 - **Web Chat**: https://full-stack-ai-chat-git-main-okanalats-projects.vercel.app
 - **Backend API**: https://fullstackaichat-htei.onrender.com/api/messages
 - **Mobil APK**: https://github.com/okanalatt/FullStackAIChat/releases/download/1.0.0/app-release.apk
-- - **AI Servisi Endpoint **: https://huggingface.co/spaces/okanalat/duygu-analizi
+- **AI Servisi Endpoint**: https://huggingface.co/spaces/okanalat/duygu-analizi
 
 ## ⚙️ Kurulum
 
