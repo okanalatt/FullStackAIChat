@@ -2,12 +2,22 @@
 
 Kullanıcıların mesajlaşarak sohbet edebildiği, AI ile duygu analizi yapılan web + mobil uygulama.
 
-## 🚀 Teknolojiler
+### Kullanılan Teknolojiler ve Hosting
 
-- **Frontend Web**: React.js + Axios + Vercel
-- **Frontend Mobil**: React Native CLI (TypeScript)
-- **Backend**: .NET Core 9 + Entity Framework + SQLite + Docker + Render
-- **AI Servisi**: Hugging Face (distilbert-base-uncased-finetuned-sst-2-english)
+Bu Full-Stack proje, uçtan uca zinciri (React → .NET → Python AI) göstermek amacıyla tamamen ücretsiz hosting platformlarında barındırılmıştır.
+
+| Katman | Teknoloji Yığını | Veritabanı / AI Model | Hosting Platformu |
+| :--- | :--- | :--- | :--- |
+| **Frontend (Web)** | React.js (Axios ile entegrasyon) | N/A | Vercel |
+| **Frontend (Mobil)** | React Native CLI (TypeScript) | N/A | N/A (APK sunuldu) |
+| **Backend (API)** | .NET Core 9 + Entity Framework | SQLite | Render (Docker ile) |
+| **AI Servisi** | Python + Gradio API | **Türkçe Duygu Analizi Modeli (Örn: `savasy/bert-base-turkish-sentiment-cased`)** | Hugging Face Spaces |
+
+---
+
+### Önemli Not: AI Model Seçimi
+
+Proje, Türkçe yazışmaları analiz edeceği için, İngilizce üzerinde eğitilmiş popüler bir model yerine (**distilbert-base-uncased-finetuned-sst-2-english** gibi), **Türkçe** metinler üzerinde eğitilmiş, pozitif/nötr/negatif çıktı veren bir model tercih edilmiştir. Bu, projenin temel işlevinin doğru çalışmasını sağlar.
 
 ## 📦 Proje Yapısı
 ```
