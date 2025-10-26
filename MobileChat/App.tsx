@@ -69,10 +69,8 @@ const App = () => {
         };
 
         try {
-            // Backend'den tek mesaj dönüyor, array deðil!
             const response = await axios.post(`${API_URL}/api/messages`, messageData);
 
-            // Yeni mesajý mevcut listeye ekle
             const savedMessage = {
                 ...response.data,
                 feeling: response.data.feeling || response.data.Feeling || 'bekleniyor',
@@ -83,7 +81,6 @@ const App = () => {
             setNewMessage('');
         } catch (error: any) {
             console.error('Mesaj gönderme hatasý:', error);
-            // Sadece gerçek hata olduðunda göster
             if (error.response?.status !== 201) {
                 Alert.alert('Hata', 'Mesaj gönderilemedi. Lütfen tekrar deneyin.');
             }
@@ -103,16 +100,16 @@ const App = () => {
     if (!isRumuzEntered) {
         return (
             <View style={styles.container}>
-                <Text style={styles.headerText}>Konuþarak Öðren Mobil Chat</Text>
+                <Text style={styles.headerText}>FullStack AI Chat (Mobil)</Text>
                 <TextInput
-                    style={styles.input}
-                    placeholder="Bir Rumuz Girin (Gerekli)"
+                    style={styles.rumuzInput}
+                    placeholder="Rumuz girin"
                     value={rumuz}
                     onChangeText={setRumuz}
                     editable={!loading}
                 />
                 <Button
-                    title={'Chat\'e Baþla'}
+                    title="Sohbete Baþla"
                     onPress={() => {
                         if (rumuz.trim()) {
                             setIsRumuzEntered(true);
@@ -133,8 +130,8 @@ const App = () => {
             keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}>
 
             <View style={styles.header}>
-                <Text style={styles.headerText}>Full Stack AI Chat (Mobil)</Text>
-                <Text style={{ color: 'white' }}>Rumuzunuz: {rumuz}</Text>
+                <Text style={styles.headerText}>FullStack AI Chat</Text>
+                <Text style={styles.rumuzText}>Rumuz: {rumuz}</Text>
             </View>
 
             <FlatList
@@ -193,18 +190,33 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         padding: 20,
+        backgroundColor: '#f5f5f5',
     },
     header: {
         backgroundColor: '#3498db',
         paddingTop: 40,
-        paddingBottom: 10,
+        paddingBottom: 15,
         paddingHorizontal: 20,
     },
     headerText: {
-        fontSize: 18,
+        fontSize: 20,
         fontWeight: 'bold',
         color: 'white',
         marginBottom: 5,
+    },
+    rumuzText: {
+        fontSize: 14,
+        color: 'white',
+    },
+    rumuzInput: {
+        width: '80%',
+        borderWidth: 1,
+        borderColor: '#ccc',
+        padding: 12,
+        borderRadius: 8,
+        marginBottom: 20,
+        backgroundColor: 'white',
+        fontSize: 16,
     },
     input: {
         flex: 1,
@@ -213,6 +225,7 @@ const styles = StyleSheet.create({
         padding: 10,
         borderRadius: 5,
         marginRight: 10,
+        backgroundColor: 'white',
     },
     inputContainer: {
         flexDirection: 'row',
@@ -222,7 +235,7 @@ const styles = StyleSheet.create({
         backgroundColor: 'white',
     },
     messageBubble: {
-        padding: 10,
+        padding: 12,
         borderRadius: 10,
         marginVertical: 5,
         maxWidth: '80%',
@@ -243,9 +256,11 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         fontSize: 12,
         marginBottom: 3,
+        color: '#2c3e50',
     },
     messageContent: {
         fontSize: 16,
+        color: '#2c3e50',
     },
     sentimentContainer: {
         flexDirection: 'row',
