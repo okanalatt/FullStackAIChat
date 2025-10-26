@@ -6,10 +6,10 @@ Kullanıcıların mesajlaşarak sohbet edebildiği, AI ile duygu analizi yapıla
 
 Bu Full-Stack proje, uçtan uca zinciri (React → .NET → Python AI) göstermek amacıyla tamamen ücretsiz hosting platformlarında barındırılmıştır.
 
-Frontend Web: React.js + Axios + Vercel
-Frontend Mobil: React Native CLI (TypeScript)
-Backend: .NET Core 9 + Entity Framework + SQLite + Docker + Render
-AI Servisi: Hugging Face - distilbert-base-uncased-finetuned-sst-2-english
+- **Frontend Web**: React.js + Axios + Vercel
+- **Frontend Mobil**: React Native CLI (TypeScript)
+- **Backend**: .NET Core 9 + Entity Framework + SQLite + Docker + Render
+- **AI Servisi**: Hugging Face - distilbert-base-uncased-finetuned-sst-2-english
 ---
 
 ### Önemli Not: AI Model Seçimi
