@@ -12,10 +12,8 @@ import {
 } from 'react-native';
 import axios from 'axios';
 
-// Backend URL'niz: Render API'nin ana adresi.
 const API_URL = 'https://fullstackaichat-htei.onrender.com';
 
-// Mesaj tipini C# Modelinize (Message) göre güncelledik
 interface Message {
     id: number;
     name: string;
@@ -35,10 +33,13 @@ const App = () => {
     const getSentimentColor = (score: string) => {
         switch (score.toLowerCase()) {
             case 'pozitif':
+            case 'positive':
                 return 'green';
             case 'negatif':
+            case 'negative':
                 return 'red';
             case 'nötr':
+            case 'neutral':
                 return 'gray';
             default:
                 return 'orange';
@@ -50,8 +51,8 @@ const App = () => {
             const response = await axios.get(`${API_URL}/api/messages`);
             setMessages(response.data.map((msg: any) => ({
                 ...msg,
-                feeling: msg.feeling || 'bekleniyor',
-                score: msg.score || 0
+                feeling: msg.feeling || msg.Feeling || 'bekleniyor',
+                score: msg.score || msg.Score || 0
             })));
         } catch (error) {
             console.error("Mesajlar çekilemedi:", error);
@@ -68,15 +69,24 @@ const App = () => {
         };
 
         try {
+            // Backend'den tek mesaj dönüyor, array deðil!
             const response = await axios.post(`${API_URL}/api/messages`, messageData);
-            setMessages(response.data.map((msg: any) => ({
-                ...msg,
-                feeling: msg.feeling || 'bekleniyor',
-                score: msg.score || 0
-            })));
+
+            // Yeni mesajý mevcut listeye ekle
+            const savedMessage = {
+                ...response.data,
+                feeling: response.data.feeling || response.data.Feeling || 'bekleniyor',
+                score: response.data.score || response.data.Score || 0
+            };
+
+            setMessages(prev => [...prev, savedMessage]);
             setNewMessage('');
-        } catch (error) {
-            Alert.alert('Hata', 'Mesaj gönderilemedi. (Backend/AI sorunu olabilir.)');
+        } catch (error: any) {
+            console.error('Mesaj gönderme hatasý:', error);
+            // Sadece gerçek hata olduðunda göster
+            if (error.response?.status !== 201) {
+                Alert.alert('Hata', 'Mesaj gönderilemedi. Lütfen tekrar deneyin.');
+            }
         } finally {
             setLoading(false);
         }
@@ -138,7 +148,6 @@ const App = () => {
                         <Text style={styles.messageRumuz}>{item.name}</Text>
                         <Text style={styles.messageContent}>{item.description}</Text>
 
-                        {/* Duygu ve Skor Gösterimi */}
                         <View style={styles.sentimentContainer}>
                             <Text style={[
                                 styles.sentiment,
