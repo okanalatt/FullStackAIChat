@@ -39,16 +39,12 @@ namespace ChatAPI.Controllers
         {
             string finalFeeling = "Analiz Edilemedi";
             double finalScore = 0;
-
-            // 1. Model ve API Ayarları
+            // Config dosyasını falan boşver, direkt adresi elle yazıyoruz:
             string apiKey = _configuration.GetValue<string>("AIServices:ApiKey");
-            // Render ayarını boşver, çalışan modeli elle yazıyoruz:
-            string model = "distilbert-base-uncased-finetuned-sst-2-english";
-            if (string.IsNullOrEmpty(model)) model = "distilbert-base-uncased-finetuned-sst-2-english";
+            string url = "https://api-inference.huggingface.co/models/distilbert-base-uncased-finetuned-sst-2-english";
 
-            string url = $"https://api-inference.huggingface.co/models/{model}";
-
-            Console.WriteLine($"[BASLADI] Model: {model} kullanılıyor...");
+            // Loga da yazdıralım ki emin olalım
+            Console.WriteLine($"[ZORLAMA URL] İstek şu adrese gidiyor: {url}");
 
             try
             {
