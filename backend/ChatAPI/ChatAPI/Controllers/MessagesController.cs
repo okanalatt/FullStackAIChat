@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using ChatAPI.Data;
 using ChatAPI.Models;
+using System.Net.Http.Headers;
 
 namespace ChatAPI.Controllers
 {
@@ -12,10 +13,12 @@ namespace ChatAPI.Controllers
     public class MessagesController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly IConfiguration _configuration;
 
-        public MessagesController(AppDbContext context)
+        public MessagesController(AppDbContext context, IConfiguration configuration)
         {
             _context = context;
+            _configuration = configuration;
         }
 
         [HttpGet]
@@ -32,22 +35,28 @@ namespace ChatAPI.Controllers
 
             try
             {
-                // 1. HEDEF: Senin Python Space'inin ÖZEL adresi
-                // Hugging Face Space'leri genellikle bu formatta API verir:
-                string url = "https://okanalat-duygu-analizi.hf.space/api/predict";
+                // 1. GARANTİ MODEL: DistilBERT (İngilizce ama çok hızlı ve sağlam)
+                string url = "https://api-inference.huggingface.co/models/distilbert-base-uncased-finetuned-sst-2-english";
 
-                Console.WriteLine($"[BASLADI] Python Space'e ({url}) gidiliyor...");
+                // API Key'i Render ayarlarından alıyoruz
+                string apiKey = _configuration.GetValue<string>("AIServices:ApiKey");
+
+                Console.WriteLine($"[BASLADI] DistilBERT Modeline istek atılıyor... (Timeout: 30sn)");
 
                 using HttpClient client = new HttpClient();
-                client.Timeout = TimeSpan.FromSeconds(30);
+                client.Timeout = TimeSpan.FromSeconds(30); // 30 Saniye Bekleme Süresi
 
-                // 2. GRADIO FORMATI: Gradio bizden "data" içinde bir dizi ister
-                var payload = new { data = new[] { request.Description } };
-                string jsonBody = JsonSerializer.Serialize(payload);
+                // API Key ekle
+                if (!string.IsNullOrEmpty(apiKey))
+                {
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+                }
 
+                var requestBody = new { inputs = request.Description };
+                string jsonBody = JsonSerializer.Serialize(requestBody);
                 using var content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
 
-                // 3. İSTEK AT
+                // İstek Gönder
                 HttpResponseMessage response = await client.PostAsync(url, content);
                 string result = await response.Content.ReadAsStringAsync();
 
@@ -55,41 +64,46 @@ namespace ChatAPI.Controllers
 
                 if (response.IsSuccessStatusCode)
                 {
-                    // Gradio'nun cevabı şöyledir: { "data": [ "LABEL", SKOR ] }
                     using (JsonDocument doc = JsonDocument.Parse(result))
                     {
-                        // "data" dizisini bul
-                        if (doc.RootElement.TryGetProperty("data", out JsonElement dataArray) && dataArray.ValueKind == JsonValueKind.Array)
+                        JsonElement root = doc.RootElement;
+
+                        // Hugging Face standart API cevabını işle
+                        if (root.ValueKind == JsonValueKind.Array)
                         {
-                            // Senin Python kodun return result['label'], float(result['score']) yapıyor.
-                            // Yani data[0] = label, data[1] = score
-
-                            finalFeeling = dataArray[0].GetString(); // Label (Örn: "positive")
-
-                            if (dataArray.GetArrayLength() > 1)
+                            JsonElement firstItem = root[0];
+                            // İç içe liste kontrolü [[...]]
+                            if (firstItem.ValueKind == JsonValueKind.Array)
                             {
-                                finalScore = dataArray[1].GetDouble(); // Score
+                                firstItem = firstItem[0];
                             }
 
-                            // Türkçeleştirme (Opsiyonel)
-                            if (finalFeeling?.ToLower() == "positive") finalFeeling = "Pozitif";
-                            if (finalFeeling?.ToLower() == "negative") finalFeeling = "Negatif";
+                            if (firstItem.TryGetProperty("label", out JsonElement labelProp))
+                            {
+                                finalFeeling = labelProp.GetString(); // POSITIVE veya NEGATIVE döner
+                            }
 
-                            Console.WriteLine($"[SONUC] : {finalFeeling} - {finalScore}");
+                            if (firstItem.TryGetProperty("score", out JsonElement scoreProp))
+                            {
+                                finalScore = scoreProp.GetDouble();
+                            }
+
+                            Console.WriteLine($"[SONUC] : {finalFeeling}");
                         }
                     }
                 }
                 else
                 {
-                    Console.WriteLine($"[PYTHON SPACE HATASI] : {result}");
+                    // Hata detayını loga bas
+                    Console.WriteLine($"[API HATASI] : {result}");
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[HATA] Bağlantı sorunu: {ex.Message}");
+                Console.WriteLine($"[KRITIK HATA] : {ex.Message}");
             }
 
-            // KAYDET
+            // Kaydet
             Message message = new Message
             {
                 Name = request.Name,
