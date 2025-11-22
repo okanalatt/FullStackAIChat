@@ -42,7 +42,8 @@ namespace ChatAPI.Controllers
 
             // 1. Model ve API Ayarları
             string apiKey = _configuration.GetValue<string>("AIServices:ApiKey");
-            string model = _configuration.GetValue<string>("AIServices:Model");
+            // Render ayarını boşver, çalışan modeli elle yazıyoruz:
+            string model = "distilbert-base-uncased-finetuned-sst-2-english";
             if (string.IsNullOrEmpty(model)) model = "distilbert-base-uncased-finetuned-sst-2-english";
 
             string url = $"https://api-inference.huggingface.co/models/{model}";
