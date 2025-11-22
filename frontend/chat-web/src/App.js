@@ -2,31 +2,41 @@
 import axios from 'axios';
 import './App.css';
 
-// DOĞRU URL!
-const API_BASE_URL = 'https://fullstackaichat-htei.onrender.com/api/messages';
+// API URL — DOĞRU
+const API_BASE_URL = "https://fullstackaichat-htei.onrender.com/api/messages";
 
 function App() {
     const [messages, setMessages] = useState([]);
-    const [currentMessage, setCurrentMessage] = useState('');
-    const [nickname, setNickname] = useState('Anonim');
+    const [currentMessage, setCurrentMessage] = useState("");
+    const [nickname, setNickname] = useState("Anonim");
     const [isLoading, setIsLoading] = useState(false);
 
+    // Sayfa açılınca backend'i uyandır + mesajları çek
     useEffect(() => {
+        wakeServer();
         fetchMessages();
     }, []);
 
+    // Backend uyku modundan çıkması için ping atıyoruz
+    const wakeServer = async () => {
+        try {
+            await axios.get(API_BASE_URL);
+        } catch (_) { }
+    };
+
+    // Mesajları getir
     const fetchMessages = async () => {
         try {
             const response = await axios.get(API_BASE_URL);
             setMessages(response.data || []);
         } catch (error) {
-            console.error("Mesajlar çekilirken hata oluştu:", error);
+            console.error("Mesajlar çekilirken hata:", error);
         }
     };
 
+    // 410 Gone otomatik retry yapan gönderme fonksiyonu
     const handleSend = async (e) => {
         e.preventDefault();
-
         if (!currentMessage.trim() || isLoading) return;
 
         const messageData = {
@@ -37,44 +47,66 @@ function App() {
         setIsLoading(true);
 
         try {
-            const response = await axios.post(API_BASE_URL, messageData);
-            const savedMessage = response.data;
-            setMessages(prevMessages => [...prevMessages, savedMessage]);
-            setCurrentMessage('');
+            let response;
+
+            try {
+                response = await axios.post(API_BASE_URL, messageData);
+            } catch (err) {
+                if (err.response?.status === 410) {
+                    console.warn("Sunucu uyuyor → tekrar deniyorum...");
+                    await new Promise(res => setTimeout(res, 1500));
+                    response = await axios.post(API_BASE_URL, messageData);
+                } else {
+                    throw err;
+                }
+            }
+
+            setMessages(prev => [...prev, response.data]);
+            setCurrentMessage("");
+
         } catch (error) {
-            console.error('Mesaj gönderme hatası:', error.response ? error.response.data : error.message);
+            console.error("Mesaj gönderme hatası:", error);
         } finally {
             setIsLoading(false);
         }
     };
 
     const getSentimentColor = (feeling) => {
-        if (!feeling) return 'gray';
-        const lowerCaseFeeling = feeling.toLowerCase();
-        if (lowerCaseFeeling.includes('pozitif')) return 'green';
-        if (lowerCaseFeeling.includes('negatif')) return 'red';
-        return 'gray';
+        if (!feeling) return "gray";
+        const f = feeling.toLowerCase();
+        if (f.includes("pozitif")) return "green";
+        if (f.includes("negatif")) return "red";
+        return "gray";
     };
 
     return (
-        <div className="App" style={{ padding: '20px' }}>
+        <div className="App" style={{ padding: "20px" }}>
             <h1>FullStack Chat + AI Analiz 💬</h1>
 
-            <div style={{ border: '1px solid #ccc', height: '300px', overflowY: 'scroll', marginBottom: '10px', padding: '10px' }}>
+            <div className ="chat-box" style={{
+                border: "1px solid #ccc",
+                height: "300px",
+                overflowY: "scroll",
+                marginBottom: "10px",
+                padding: "10px"
+            }}>
                 {messages.length === 0 ? (
-                    <p style={{ textAlign: 'center', color: '#666' }}>Henüz mesaj yok. Bir mesaj gönderin!</p>
+                    <p style={{ textAlign: "center", color: "#666" }}>
+                        Henüz mesaj yok. Bir mesaj gönderin!
+                    </p>
                 ) : (
                     messages.map((msg, index) => (
-                        <div key={index} style={{ marginBottom: '5px' }}>
+                        <div key={index} style={{ marginBottom: "5px" }}>
                             <strong>{msg.name || msg.Name}:</strong> {msg.description || msg.Description}
                             <span style={{
-                                marginLeft: '10px', fontWeight: 'bold',
+                                marginLeft: "10px",
+                                fontWeight: "bold",
                                 color: getSentimentColor(msg.feeling || msg.Feeling)
                             }}>
-                                ({msg.feeling || msg.Feeling || 'Analiz Ediliyor'})
+                                ({msg.feeling || msg.Feeling || "Analiz"})
                             </span>
                             {(msg.score || msg.Score) && (
-                                <span style={{ marginLeft: '10px', color: '#666', fontSize: '14px' }}>
+                                <span style={{ marginLeft: "10px", color: "#666", fontSize: "14px" }}>
                                     [{((msg.score || msg.Score) * 100).toFixed(1)}%]
                                 </span>
                             )}
@@ -83,23 +115,25 @@ function App() {
                 )}
             </div>
 
-            <form onSubmit={handleSend} style={{ display: 'flex' }}>
+            <form onSubmit={handleSend} style={{ display: "flex" }}>
                 <input
                     type="text"
                     placeholder="Rumuzunuz"
                     value={nickname}
                     onChange={(e) => setNickname(e.target.value)}
-                    style={{ marginRight: '10px', padding: '8px' }}
+                    style={{ marginRight: "10px", padding: "8px" }}
                 />
+
                 <input
                     type="text"
                     placeholder="Mesajınızı yazın..."
                     value={currentMessage}
                     onChange={(e) => setCurrentMessage(e.target.value)}
-                    style={{ flexGrow: 1, padding: '8px', marginRight: '10px' }}
+                    style={{ flexGrow: 1, padding: "8px", marginRight: "10px" }}
                 />
-                <button type="submit" style={{ padding: '8px 15px' }} disabled={isLoading}>
-                    {isLoading ? 'Gönderiliyor...' : 'Gönder'}
+
+                <button type="submit" style={{ padding: "8px 15px" }} disabled={isLoading}>
+                    {isLoading ? "Gönderiliyor..." : "Gönder"}
                 </button>
             </form>
         </div>
