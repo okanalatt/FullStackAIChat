@@ -4,7 +4,6 @@ using System.Text;
 using System.Text.Json;
 using ChatAPI.Data;
 using ChatAPI.Models;
-using System.Net.Http.Headers;
 
 namespace ChatAPI.Controllers
 {
@@ -13,12 +12,10 @@ namespace ChatAPI.Controllers
     public class MessagesController : ControllerBase
     {
         private readonly AppDbContext _context;
-        private readonly IConfiguration _configuration;
 
-        public MessagesController(AppDbContext context, IConfiguration configuration)
+        public MessagesController(AppDbContext context)
         {
             _context = context;
-            _configuration = configuration;
         }
 
         [HttpGet]
@@ -30,28 +27,24 @@ namespace ChatAPI.Controllers
         [HttpPost]
         public async Task<ActionResult<Message>> PostMessage(SentimentRequest request)
         {
-            // Başlangıçta boş, hatayı buraya dolduracağız
-            string finalFeeling = "";
+            string finalFeeling = "Analiz Edilemedi";
             double finalScore = 0;
 
             try
             {
-                // İngilizce Model (Test İçin)
-                string url = "https://api-inference.huggingface.co/models/distilbert-base-uncased-finetuned-sst-2-english";
-                string apiKey = _configuration.GetValue<string>("AIServices:ApiKey");
+                // 1. ADRES: Senin Kendi Space Adresin
+                string url = "https://okanalat-duygu-analizi.hf.space/api/predict";
+
+                // 2. DATA: Gradio formatına uygun paketleme
+                var payload = new { data = new[] { request.Description } };
+                string jsonBody = JsonSerializer.Serialize(payload);
 
                 using HttpClient client = new HttpClient();
-                client.Timeout = TimeSpan.FromSeconds(30);
+                client.Timeout = TimeSpan.FromSeconds(60); // Space uyanana kadar bekle
 
-                if (!string.IsNullOrEmpty(apiKey))
-                {
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
-                }
-
-                var requestBody = new { inputs = request.Description };
-                string jsonBody = JsonSerializer.Serialize(requestBody);
                 using var content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
 
+                // 3. İSTEK
                 HttpResponseMessage response = await client.PostAsync(url, content);
                 string result = await response.Content.ReadAsStringAsync();
 
@@ -59,47 +52,48 @@ namespace ChatAPI.Controllers
                 {
                     using (JsonDocument doc = JsonDocument.Parse(result))
                     {
-                        JsonElement root = doc.RootElement;
-                        if (root.ValueKind == JsonValueKind.Array)
+                        // Gradio cevabı: { "data": [ "LABEL", SKOR ] }
+                        if (doc.RootElement.TryGetProperty("data", out JsonElement dataArray) && dataArray.ValueKind == JsonValueKind.Array)
                         {
-                            JsonElement firstItem = root[0];
-                            if (firstItem.ValueKind == JsonValueKind.Array) firstItem = firstItem[0];
+                            // Label (data[0])
+                            string label = dataArray[0].GetString();
 
-                            if (firstItem.TryGetProperty("label", out JsonElement labelProp))
-                                finalFeeling = labelProp.GetString();
+                            // Skor (data[1]) - Varsa al
+                            if (dataArray.GetArrayLength() > 1)
+                            {
+                                finalScore = dataArray[1].GetDouble();
+                            }
 
-                            if (firstItem.TryGetProperty("score", out JsonElement scoreProp))
-                                finalScore = scoreProp.GetDouble();
+                            // Türkçeleştirme
+                            if (label == "positive" || label == "Pozitif" || label == "LABEL_1") finalFeeling = "Pozitif";
+                            else if (label == "negative" || label == "Negatif" || label == "LABEL_0") finalFeeling = "Negatif";
+                            else if (label == "neutral" || label == "Notr") finalFeeling = "Nötr";
+                            else finalFeeling = label;
                         }
                         else
                         {
-                            // JSON ama beklediğimiz formatta değilse içeriği yaz
-                            finalFeeling = $"Format Hatası: {result.Substring(0, Math.Min(result.Length, 50))}";
+                            finalFeeling = $"Format Farklı: {result}";
                         }
                     }
                 }
                 else
                 {
-                    // API HATA VERDİYSE KODUNU VE MESAJINI EKRANA YAZ
-                    // Örn: (401 Unauthorized)
-                    finalFeeling = $"API Hatası: {response.StatusCode} - {result}";
+                    finalFeeling = $"Space Hatası: {response.StatusCode}";
                 }
             }
             catch (Exception ex)
             {
-                // KOD PATLARSA SEBEBİNİ EKRANA YAZ
-                // Örn: (Connection Refused)
-                finalFeeling = $"Sistem Hatası: {ex.Message}";
+                finalFeeling = $"Bağlantı Hatası: {ex.Message}";
             }
 
-            // Çok uzun hata mesajları veritabanını patlatmasın diye kırpıyoruz
-            if (finalFeeling.Length > 100) finalFeeling = finalFeeling.Substring(0, 97) + "...";
+            // Hata mesajı uzunsa kırp
+            if (finalFeeling.Length > 50) finalFeeling = finalFeeling.Substring(0, 47) + "...";
 
             Message message = new Message
             {
                 Name = request.Name,
                 Description = request.Description,
-                Feeling = finalFeeling, // ARTIK BURADA GERÇEK HATA YAZACAK
+                Feeling = finalFeeling,
                 Score = (float)finalScore,
                 Timestamp = DateTime.UtcNow
             };
