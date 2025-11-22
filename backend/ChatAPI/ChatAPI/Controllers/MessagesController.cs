@@ -57,7 +57,16 @@ namespace ChatAPI.Controllers
                             if (firstItem.ValueKind == JsonValueKind.Array) firstItem = firstItem[0];
 
                             if (firstItem.TryGetProperty("label", out JsonElement labelProp))
-                                finalFeeling = labelProp.GetString();
+                            {
+                                var eng = labelProp.GetString()?.ToUpper();
+
+                                if (eng == "POSITIVE")
+                                    finalFeeling = "Pozitif";
+                                else if (eng == "NEGATIVE")
+                                    finalFeeling = "Negatif";
+                                else
+                                    finalFeeling = "Analiz Edilemedi";
+                            }
 
                             if (firstItem.TryGetProperty("score", out JsonElement scoreProp))
                                 finalScore = scoreProp.GetDouble();
