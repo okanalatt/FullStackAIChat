@@ -1,61 +1,54 @@
 using ChatAPI.Data;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Mvc;
-
-var MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. CORS Politikasini Ekleme
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy(name: MyAllowSpecificOrigins,
-                      policy =>
-                      {
-                          policy.AllowAnyOrigin()
-                                .AllowAnyHeader()
-                                .AllowAnyMethod();
-                      });
-});
-
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
-
-builder.Services.AddRouting(options => options.LowercaseUrls = true);
-builder.Services.AddControllers()
-    .AddJsonOptions(options =>
-    {
-        // JSON formatýnda Türkçeyi desteklemek için varsayýlan kodlamayý UTF8 olarak ayarla
-        options.JsonSerializerOptions.Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping;
-        options.JsonSerializerOptions.WriteIndented = true;
-    });
-builder.Services.AddHttpClient();
+// Servisleri ekle
+builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// Veritabaný Ayarý (SQLite)
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? "Data Source=ChatDB.db";
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseSqlite(connectionString));
+
+// CORS Ayarý (Frontend'in eriþmesi için ÇOK ÖNEMLÝ)
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll",
+        builder => builder
+            .AllowAnyOrigin()
+            .AllowAnyMethod()
+            .AllowAnyHeader());
+});
+
 var app = builder.Build();
 
-// Database Migration
-using (var scope = app.Services.CreateScope())
-{
-    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    dbContext.Database.Migrate();
-}
+// HTTP istek hattýný yapýlandýr
+app.UseSwagger();
+app.UseSwaggerUI();
 
-// CORS'u en üstte kullan (ÖNEMLÝ!)
-app.UseCors(MyAllowSpecificOrigins);
+app.UseCors("AllowAll"); // CORS'u aktif et
 
-// Swagger sadece development'ta
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-
-//app.UseHttpsRedirection();
-app.UseRouting();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Otomatik Migration (Veritabanýný oluþturur)
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    try
+    {
+        var context = services.GetRequiredService<AppDbContext>();
+        context.Database.EnsureCreated();
+    }
+    catch (Exception ex)
+    {
+        var logger = services.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "Veritabaný oluþturulurken hata çýktý.");
+    }
+}
 
 app.Run();

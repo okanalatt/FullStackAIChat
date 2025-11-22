@@ -32,19 +32,17 @@ namespace ChatAPI.Controllers
 
             try
             {
-                // 1. ADRES: Senin Kendi Space Adresin
+                // SENİN SPACE ADRESİN
                 string url = "https://okanalat-duygu-analizi.hf.space/api/predict";
 
-                // 2. DATA: Gradio formatına uygun paketleme
                 var payload = new { data = new[] { request.Description } };
                 string jsonBody = JsonSerializer.Serialize(payload);
 
                 using HttpClient client = new HttpClient();
-                client.Timeout = TimeSpan.FromSeconds(60); // Space uyanana kadar bekle
+                client.Timeout = TimeSpan.FromSeconds(60);
 
                 using var content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
 
-                // 3. İSTEK
                 HttpResponseMessage response = await client.PostAsync(url, content);
                 string result = await response.Content.ReadAsStringAsync();
 
@@ -52,27 +50,16 @@ namespace ChatAPI.Controllers
                 {
                     using (JsonDocument doc = JsonDocument.Parse(result))
                     {
-                        // Gradio cevabı: { "data": [ "LABEL", SKOR ] }
                         if (doc.RootElement.TryGetProperty("data", out JsonElement dataArray) && dataArray.ValueKind == JsonValueKind.Array)
                         {
-                            // Label (data[0])
                             string label = dataArray[0].GetString();
+                            if (dataArray.GetArrayLength() > 1) finalScore = dataArray[1].GetDouble();
 
-                            // Skor (data[1]) - Varsa al
-                            if (dataArray.GetArrayLength() > 1)
-                            {
-                                finalScore = dataArray[1].GetDouble();
-                            }
-
-                            // Türkçeleştirme
-                            if (label == "positive" || label == "Pozitif" || label == "LABEL_1") finalFeeling = "Pozitif";
-                            else if (label == "negative" || label == "Negatif" || label == "LABEL_0") finalFeeling = "Negatif";
-                            else if (label == "neutral" || label == "Notr") finalFeeling = "Nötr";
+                            // Basit Türkçeleştirme
+                            if (label == "positive" || label == "LABEL_1") finalFeeling = "Pozitif";
+                            else if (label == "negative" || label == "LABEL_0") finalFeeling = "Negatif";
+                            else if (label == "neutral") finalFeeling = "Nötr";
                             else finalFeeling = label;
-                        }
-                        else
-                        {
-                            finalFeeling = $"Format Farklı: {result}";
                         }
                     }
                 }
@@ -86,7 +73,6 @@ namespace ChatAPI.Controllers
                 finalFeeling = $"Bağlantı Hatası: {ex.Message}";
             }
 
-            // Hata mesajı uzunsa kırp
             if (finalFeeling.Length > 50) finalFeeling = finalFeeling.Substring(0, 47) + "...";
 
             Message message = new Message
