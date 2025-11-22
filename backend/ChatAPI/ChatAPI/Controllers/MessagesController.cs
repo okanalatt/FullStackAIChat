@@ -41,74 +41,78 @@ namespace ChatAPI.Controllers
         }
 
         // Post - api/Messages (En son ve kapsamlı hata yönetimi içerir)
+        // Post - api/Messages (LOGLARI GÖSTEREN VERSİYON)
         [HttpPost]
         public async Task<ActionResult<Message>> PostMessage(SentimentRequest request)
         {
-            // 1. Varsayılan Değerler (Yapay zeka çalışmazsa bunlar kullanılacak)
             string Feeling = "Analiz Edilemedi";
             double Score = 0;
+
             try
             {
+                // 1. Ayarları Al
                 string apiKey = _configuration.GetValue<string>("AIServices:ApiKey");
                 string model = _configuration.GetValue<string>("AIServices:Model");
 
-                // Eğer config boş gelirse varsayılan model ata
+                // Eğer model boşsa varsayılanı ata
                 if (string.IsNullOrEmpty(model)) model = "distilbert-base-uncased-finetuned-sst-2-english";
 
                 string url = $"https://api-inference.huggingface.co/models/{model}";
 
+                Console.WriteLine($"[BILGI] Model: {model} adresine istek atılıyor..."); // LOG EKLENDİ
+
                 using HttpClient client = new HttpClient();
-                // API Key varsa ekle
                 if (!string.IsNullOrEmpty(apiKey))
                 {
                     client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
                 }
 
-                client.Timeout = TimeSpan.FromSeconds(5); // 5 saniye bekle, cevap yoksa geç
+                client.Timeout = TimeSpan.FromSeconds(10); // Süreyi biraz artırdık
 
                 var requestBody = new { inputs = request.Description };
                 string json = JsonSerializer.Serialize(requestBody);
                 using var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                // AI Servisine İstek Gönder
                 HttpResponseMessage response = await client.PostAsync(url, content);
 
                 if (response.IsSuccessStatusCode)
                 {
                     string result = await response.Content.ReadAsStringAsync();
-
-                    // Gelen veri HTML mi yoksa JSON mu kontrol et (Senin aldığın hatanın çözümü)
+                    // JSON kontrolü
                     if (!string.IsNullOrEmpty(result) && result.Trim().StartsWith("["))
                     {
-                        // JSON ise işle
                         var sentimentResponse = JsonSerializer.Deserialize<List<List<SentimentResponse>>>(result);
                         if (sentimentResponse != null && sentimentResponse.Count > 0)
                         {
                             var resultSentiment = sentimentResponse.First().OrderByDescending(x => x.score).First();
                             Feeling = resultSentiment.label;
                             Score = resultSentiment.score;
+                            Console.WriteLine($"[BASARILI] Analiz Sonucu: {Feeling}"); // LOG EKLENDİ
                         }
+                    }
+                    else
+                    {
+                        Console.WriteLine($"[HATA] Beklenmeyen Yanıt Formatı: {result}"); // LOG EKLENDİ
                     }
                 }
                 else
                 {
-                    // AI sunucusu hata verdiyse logla ama devam et
-                    System.Diagnostics.Debug.WriteLine($"AI API Hata Kodu: {response.StatusCode}");
+                    // Hata kodunu konsola bas
+                    string errorDetails = await response.Content.ReadAsStringAsync();
+                    Console.WriteLine($"[HATA] Hugging Face Hatası! Kod: {response.StatusCode}, Detay: {errorDetails}"); // LOG EKLENDİ
                 }
             }
             catch (Exception ex)
             {
-                // İnternet yoksa, timeout olduysa veya başka bir sorun varsa buraya düşer.
-                // Hata fırlatma, sadece loga yaz ve devam et.
-                System.Diagnostics.Debug.WriteLine($"AI Kritik Hata (Yutuldu): {ex.Message}");
+                Console.WriteLine($"[KRITIK HATA] AI Servisi Çalışmadı: {ex.Message}"); // LOG EKLENDİ
             }
 
-            // 3. Mesajı Veritabanına Kaydet (AI sonucu ne olursa olsun burası çalışır)
+            // Veritabanı Kaydı
             Message message = new Message
             {
                 Name = request.Name,
                 Description = request.Description,
-                Feeling = Feeling, // Ya AI cevabı ya da "Analiz Edilemedi"
+                Feeling = Feeling,
                 Score = (float)Score,
                 Timestamp = DateTime.UtcNow
             };
@@ -116,8 +120,7 @@ namespace ChatAPI.Controllers
             _context.Messages.Add(message);
             await _context.SaveChangesAsync();
 
-            // 4. Başarılı kodu (201) ve mesajı döndür
             return CreatedAtAction(nameof(GetMessages), new { id = message.Id }, message);
         }
-        }
+    }
     }
