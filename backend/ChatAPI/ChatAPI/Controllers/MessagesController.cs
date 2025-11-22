@@ -15,14 +15,12 @@ namespace ChatAPI.Controllers
         private readonly AppDbContext _context;
         private readonly IConfiguration _configuration;
 
-        // Constructor
         public MessagesController(AppDbContext context, IConfiguration configuration)
         {
             _context = context;
             _configuration = configuration;
         }
 
-        // Get - api/Messages (No Such Table hatası için try-catch içerir)
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Message>>> GetMessages()
         {
@@ -30,90 +28,108 @@ namespace ChatAPI.Controllers
             {
                 return await _context.Messages.OrderBy(m => m.Timestamp).ToListAsync();
             }
-            catch (Microsoft.Data.Sqlite.SqliteException ex)
+            catch
             {
-                if (ex.Message.Contains("no such table"))
-                {
-                    return new List<Message>();
-                }
-                throw;
+                return new List<Message>();
             }
         }
 
-        // Post - api/Messages (En son ve kapsamlı hata yönetimi içerir)
-        // Post - api/Messages (LOGLARI GÖSTEREN VERSİYON)
         [HttpPost]
         public async Task<ActionResult<Message>> PostMessage(SentimentRequest request)
         {
-            string Feeling = "Analiz Edilemedi";
-            double Score = 0;
+            string finalFeeling = "Analiz Edilemedi";
+            double finalScore = 0;
+
+            // 1. Model ve API Ayarları
+            string apiKey = _configuration.GetValue<string>("AIServices:ApiKey");
+            string model = _configuration.GetValue<string>("AIServices:Model");
+            if (string.IsNullOrEmpty(model)) model = "distilbert-base-uncased-finetuned-sst-2-english";
+
+            string url = $"https://api-inference.huggingface.co/models/{model}";
+
+            Console.WriteLine($"[BASLADI] Model: {model} kullanılıyor...");
 
             try
             {
-                // 1. Ayarları Al
-                string apiKey = _configuration.GetValue<string>("AIServices:ApiKey");
-                string model = _configuration.GetValue<string>("AIServices:Model");
-
-                // Eğer model boşsa varsayılanı ata
-                if (string.IsNullOrEmpty(model)) model = "distilbert-base-uncased-finetuned-sst-2-english";
-
-                string url = $"https://api-inference.huggingface.co/models/{model}";
-
-                Console.WriteLine($"[BILGI] Model: {model} adresine istek atılıyor..."); // LOG EKLENDİ
-
                 using HttpClient client = new HttpClient();
-                if (!string.IsNullOrEmpty(apiKey))
+                if (!string.IsNullOrEmpty(apiKey) && apiKey.StartsWith("hf_"))
                 {
                     client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
                 }
 
-                client.Timeout = TimeSpan.FromSeconds(10); // Süreyi biraz artırdık
-
                 var requestBody = new { inputs = request.Description };
-                string json = JsonSerializer.Serialize(requestBody);
-                using var content = new StringContent(json, Encoding.UTF8, "application/json");
+                string jsonBody = JsonSerializer.Serialize(requestBody);
+                using var content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
 
+                // 2. İsteği Gönder
                 HttpResponseMessage response = await client.PostAsync(url, content);
+                string result = await response.Content.ReadAsStringAsync();
+
+                Console.WriteLine($"[API YANITI] Kod: {response.StatusCode}, Icerik: {result}");
 
                 if (response.IsSuccessStatusCode)
                 {
-                    string result = await response.Content.ReadAsStringAsync();
-                    // JSON kontrolü
-                    if (!string.IsNullOrEmpty(result) && result.Trim().StartsWith("["))
+                    // 3. Dinamik JSON Çözümleme (En Önemli Kısım)
+                    using (JsonDocument doc = JsonDocument.Parse(result))
                     {
-                        var sentimentResponse = JsonSerializer.Deserialize<List<List<SentimentResponse>>>(result);
-                        if (sentimentResponse != null && sentimentResponse.Count > 0)
+                        JsonElement root = doc.RootElement;
+
+                        // Eğer sonuç bir Liste ise ( [[...]] veya [...] )
+                        if (root.ValueKind == JsonValueKind.Array)
                         {
-                            var resultSentiment = sentimentResponse.First().OrderByDescending(x => x.score).First();
-                            Feeling = resultSentiment.label;
-                            Score = resultSentiment.score;
-                            Console.WriteLine($"[BASARILI] Analiz Sonucu: {Feeling}"); // LOG EKLENDİ
+                            // İlk elemanı al (Hugging Face bazen iç içe liste, bazen tek liste döner)
+                            JsonElement firstItem = root[0];
+
+                            // Eğer iç içe listeyse ([[...]]) bir katman daha in
+                            if (firstItem.ValueKind == JsonValueKind.Array)
+                            {
+                                firstItem = firstItem[0];
+                            }
+
+                            // Şimdi label ve score değerlerini okumaya çalış
+                            if (firstItem.TryGetProperty("label", out JsonElement labelProp))
+                            {
+                                finalFeeling = labelProp.GetString() ?? "Bilinmiyor";
+                            }
+
+                            if (firstItem.TryGetProperty("score", out JsonElement scoreProp))
+                            {
+                                finalScore = scoreProp.GetDouble();
+                            }
+                            Console.WriteLine($"[BASARILI] Sonuc: {finalFeeling} - {finalScore}");
                         }
-                    }
-                    else
-                    {
-                        Console.WriteLine($"[HATA] Beklenmeyen Yanıt Formatı: {result}"); // LOG EKLENDİ
+                        else
+                        {
+                            Console.WriteLine("[UYARI] API JSON döndü ama Array değil.");
+                        }
                     }
                 }
                 else
                 {
-                    // Hata kodunu konsola bas
-                    string errorDetails = await response.Content.ReadAsStringAsync();
-                    Console.WriteLine($"[HATA] Hugging Face Hatası! Kod: {response.StatusCode}, Detay: {errorDetails}"); // LOG EKLENDİ
+                    // Model Yükleniyorsa (503 hatası)
+                    if (result.Contains("loading"))
+                    {
+                        finalFeeling = "Model Yükleniyor (Tekrar Dene)";
+                    }
+                    else
+                    {
+                        finalFeeling = $"Hata: {response.StatusCode}";
+                    }
+                    Console.WriteLine($"[HATA] API Başarısız: {result}");
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[KRITIK HATA] AI Servisi Çalışmadı: {ex.Message}"); // LOG EKLENDİ
+                Console.WriteLine($"[KRITIK HATA] Kod Patladı: {ex.Message}");
             }
 
-            // Veritabanı Kaydı
+            // 4. Kaydet
             Message message = new Message
             {
                 Name = request.Name,
                 Description = request.Description,
-                Feeling = Feeling,
-                Score = (float)Score,
+                Feeling = finalFeeling,
+                Score = (float)finalScore,
                 Timestamp = DateTime.UtcNow
             };
 
@@ -123,4 +139,4 @@ namespace ChatAPI.Controllers
             return CreatedAtAction(nameof(GetMessages), new { id = message.Id }, message);
         }
     }
-    }
+}
