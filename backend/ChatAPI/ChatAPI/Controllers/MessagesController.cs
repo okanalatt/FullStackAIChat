@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using ChatAPI.Data;
 using ChatAPI.Models;
+using System.Net.Http.Headers;
 
 namespace ChatAPI.Controllers
 {
@@ -12,10 +13,12 @@ namespace ChatAPI.Controllers
     public class MessagesController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly IConfiguration _configuration;
 
-        public MessagesController(AppDbContext context)
+        public MessagesController(AppDbContext context, IConfiguration configuration)
         {
             _context = context;
+            _configuration = configuration;
         }
 
         [HttpGet]
@@ -27,59 +30,76 @@ namespace ChatAPI.Controllers
         [HttpPost]
         public async Task<ActionResult<Message>> PostMessage(SentimentRequest request)
         {
-            // Varsayılan değerler
+            // Varsayılan Değerler
             string finalFeeling = "Analiz Edilemedi";
             double finalScore = 0;
 
             try
             {
-                // BURASI KRİTİK NOKTA: Adresi elle yazdık, hata şansı %0
-                string url = "https://api-inference.huggingface.co/models/distilbert-base-uncased-finetuned-sst-2-english";
+                // 1. AYARLAR: Senin Python dosyanın kullandığı TÜRKÇE model
+                string modelName = "savasy/bert-base-turkish-sentiment-cased";
+                string url = $"https://api-inference.huggingface.co/models/{modelName}";
+
+                // API Key'i Render ayarlarından çek
+                string apiKey = _configuration.GetValue<string>("AIServices:ApiKey");
+
+                Console.WriteLine($"[BASLADI] Türkçe Model ({modelName}) deneniyor... (Süre 40sn)");
 
                 using HttpClient client = new HttpClient();
-                client.Timeout = TimeSpan.FromSeconds(5); // 5 saniye bekle
+                // Türkçe modeller ağırdır, uyanması zaman alır. Süreyi 40 saniye yaptım.
+                client.Timeout = TimeSpan.FromSeconds(40);
+
+                if (!string.IsNullOrEmpty(apiKey))
+                {
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+                }
 
                 var requestBody = new { inputs = request.Description };
                 string jsonBody = JsonSerializer.Serialize(requestBody);
                 using var content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
 
-                // İsteği gönder
+                // 2. İSTEK GÖNDER
                 HttpResponseMessage response = await client.PostAsync(url, content);
+                string result = await response.Content.ReadAsStringAsync();
 
+                Console.WriteLine($"[YANIT KODU] : {response.StatusCode}");
+
+                // 3. YANITI İŞLE
                 if (response.IsSuccessStatusCode)
                 {
-                    string result = await response.Content.ReadAsStringAsync();
-
-                    // JSON'u güvenli şekilde parçala
                     using (JsonDocument doc = JsonDocument.Parse(result))
                     {
                         JsonElement root = doc.RootElement;
-                        if (root.ValueKind == JsonValueKind.Array) // Liste mi geldi?
+                        // Hugging Face bazen [[...]] bazen [...] döner. İkisini de yakalayalım.
+                        if (root.ValueKind == JsonValueKind.Array)
                         {
-                            // HuggingFace bazen [[{}]] bazen [{}] döner. İkisini de çözelim:
                             JsonElement firstItem = root[0];
-                            if (firstItem.ValueKind == JsonValueKind.Array)
-                            {
-                                firstItem = firstItem[0];
-                            }
+                            if (firstItem.ValueKind == JsonValueKind.Array) firstItem = firstItem[0];
 
+                            // Gelen JSON'daki 'label' ve 'score' değerlerini al
                             if (firstItem.TryGetProperty("label", out JsonElement labelProp))
-                                finalFeeling = labelProp.GetString(); // POSITIVE / NEGATIVE
+                                finalFeeling = labelProp.GetString(); // positive / negative
 
                             if (firstItem.TryGetProperty("score", out JsonElement scoreProp))
                                 finalScore = scoreProp.GetDouble();
+
+                            Console.WriteLine($"[SONUC] : {finalFeeling}");
                         }
                     }
                 }
+                else
+                {
+                    // Hata varsa (410, 503 vs.) loga yaz
+                    Console.WriteLine($"[API HATASI] : {result}");
+                }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Hata olursa sessizce yut ve "Analiz Edilemedi" olarak devam et.
-                // Böylece site asla çökmez.
-                finalFeeling = "Analiz Hatası";
+                // Süre dolarsa veya başka hata olursa buraya düşer
+                Console.WriteLine($"[KRITIK HATA] : {ex.Message}");
             }
 
-            // Kaydet
+            // 4. VERİTABANINA KAYDET (Hata olsa bile kaydeder)
             Message message = new Message
             {
                 Name = request.Name,
