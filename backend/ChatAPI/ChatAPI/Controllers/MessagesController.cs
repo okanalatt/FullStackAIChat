@@ -1,5 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Text;
+using System.Text.Json;
 using ChatAPI.Data;
 using ChatAPI.Models;
 
@@ -25,13 +27,59 @@ namespace ChatAPI.Controllers
         [HttpPost]
         public async Task<ActionResult<Message>> PostMessage(SentimentRequest request)
         {
-            // BURASI DEĞİŞTİ: Artık Yapay Zekaya (Hugging Face) sormuyoruz.
-            // Doğrudan "Sistem Çalışıyor" diyoruz.
+            // Varsayılan değerler
+            string finalFeeling = "Analiz Edilemedi";
+            double finalScore = 0;
 
-            string finalFeeling = "Sistem Çalışıyor";
-            double finalScore = 1.0;
+            try
+            {
+                // BURASI KRİTİK NOKTA: Adresi elle yazdık, hata şansı %0
+                string url = "https://api-inference.huggingface.co/models/distilbert-base-uncased-finetuned-sst-2-english";
 
-            // Mesajı direkt veritabanına kaydediyoruz.
+                using HttpClient client = new HttpClient();
+                client.Timeout = TimeSpan.FromSeconds(5); // 5 saniye bekle
+
+                var requestBody = new { inputs = request.Description };
+                string jsonBody = JsonSerializer.Serialize(requestBody);
+                using var content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
+
+                // İsteği gönder
+                HttpResponseMessage response = await client.PostAsync(url, content);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    string result = await response.Content.ReadAsStringAsync();
+
+                    // JSON'u güvenli şekilde parçala
+                    using (JsonDocument doc = JsonDocument.Parse(result))
+                    {
+                        JsonElement root = doc.RootElement;
+                        if (root.ValueKind == JsonValueKind.Array) // Liste mi geldi?
+                        {
+                            // HuggingFace bazen [[{}]] bazen [{}] döner. İkisini de çözelim:
+                            JsonElement firstItem = root[0];
+                            if (firstItem.ValueKind == JsonValueKind.Array)
+                            {
+                                firstItem = firstItem[0];
+                            }
+
+                            if (firstItem.TryGetProperty("label", out JsonElement labelProp))
+                                finalFeeling = labelProp.GetString(); // POSITIVE / NEGATIVE
+
+                            if (firstItem.TryGetProperty("score", out JsonElement scoreProp))
+                                finalScore = scoreProp.GetDouble();
+                        }
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                // Hata olursa sessizce yut ve "Analiz Edilemedi" olarak devam et.
+                // Böylece site asla çökmez.
+                finalFeeling = "Analiz Hatası";
+            }
+
+            // Kaydet
             Message message = new Message
             {
                 Name = request.Name,
