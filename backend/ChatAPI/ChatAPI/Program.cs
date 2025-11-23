@@ -8,6 +8,9 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// HttpClientFactory
+builder.Services.AddHttpClient();
+
 // Veritabaný (SQLite)
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? "Data Source=ChatDB.db";
 builder.Services.AddDbContext<AppDbContext>(options =>
